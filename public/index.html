@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Data Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #chartContainer {
+            width: 80%;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>CSV Sales Data </h1>
+    <input type="file" id="fileInput" accept=".csv">
+    <button id="uploadBtn">Upload</button>
+    <div id="chartContainer">
+        <canvas id="salesChart"></canvas>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
