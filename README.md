@@ -1,3 +1,4 @@
+# Analytics chart_js
 mkdir chart_js
 cd chart_js
 touch index.html script.js README.md app.js
