@@ -6,16 +6,48 @@
     <title>Sales Data Visualization</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-image: url('public/images/biteable-living-room.jpg'); /* Change this to your local image path */
+            background-size: cover;
+            color: white;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        input[type="file"], 
+        button {
+            margin: 10px;
+            padding: 10px 15px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+        }
+        button:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
         #chartContainer {
             width: 80%;
-            margin: auto;
+            max-width: 800px;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <h1>CSV Sales Data </h1>
-    <input type="file" id="fileInput" accept=".csv">
-    <button id="uploadBtn">Upload</button>
+    <h1>Sales Data</h1>
+    <div>
+        <input type="file" id="fileInput" accept=".csv">
+        <button id="uploadBtn">Upload CSV</button>
+    </div>
     <div id="chartContainer">
         <canvas id="salesChart"></canvas>
     </div>

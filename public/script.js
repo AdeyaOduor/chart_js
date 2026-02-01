@@ -16,44 +16,84 @@ document.getElementById('uploadBtn').addEventListener('click', async () => {
         body: formData
     });
 
+    if (!response.ok) {
+        alert('Error uploading file.');
+        return;
+    }
+
     const salesData = await response.json();
-    createChart(salesData);
+    const analysisResults = performAnalytics(salesData);
+    
+    createChart(analysisResults);
 });
 
-function createChart(data) {
-    const labels = [];
-    const quantities = [];
-
-    // Aggregate data by date
+function performAnalytics(data) {
     const aggregatedData = data.reduce((acc, sale) => {
-        if (!acc[sale.date]) {
-            acc[sale.date] = { quantity: 0, revenue: 0 };
+        const date = new Date(sale.date).toLocaleDateString(); // Format date
+        if (!acc[date]) {
+            acc[date] = { quantity: 0, revenue: 0 };
         }
-        acc[sale.date].quantity += sale.quantity;
-        acc[sale.date].revenue += sale.revenue;
+        acc[date].quantity += sale.quantity;
+        acc[date].revenue += sale.revenue;
         return acc;
     }, {});
 
-    // Prepare data for the chart
-    for (const date in aggregatedData) {
-        labels.push(date);
-        quantities.push(aggregatedData[date].quantity);
-    }
+    // Descriptive analytics
+    const totalQuantity = Object.values(aggregatedData).reduce((sum, entry) => sum + entry.quantity, 0);
+    const totalRevenue = Object.values(aggregatedData).reduce((sum, entry) => sum + entry.revenue, 0);
 
-    // Create the chart
+    // Predictive analytics (e.g., moving average)
+    const predictions = calculateMovingAverage(aggregatedData);
+
+    return {
+        aggregatedData,
+        totalQuantity,
+        totalRevenue,
+        predictions
+    };
+}
+
+function calculateMovingAverage(data) {
+    const dates = Object.keys(data);
+    const movingAverage = [];
+    
+    dates.forEach((date, index) => {
+        const sum = (data[dates[index - 1]]?.quantity || 0) + (data[dates[index]]?.quantity || 0) + (data[dates[index + 1]]?.quantity || 0);
+        const avg = sum / 3; // Simple moving average of last 3 entries
+        movingAverage.push({ date, avg });
+    });
+
+    return movingAverage;
+}
+
+function createChart({ aggregatedData, predictions }) {
+    const labels = Object.keys(aggregatedData);
+    const quantities = Object.values(aggregatedData).map(entry => entry.quantity);
+    const predictionValues = predictions.map(entry => entry.avg);
+
     const ctx = document.getElementById('salesChart').getContext('2d');
     const salesChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [{
-                label: 'Quantity Sold',
-                data: quantities,
-                borderColor: 'rgba(75, 192, 192, 1)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                borderWidth: 2,
-                fill: true
-            }]
+            datasets: [
+                {
+                    label: 'Quantity Sold',
+                    data: quantities,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderWidth: 2,
+                    fill: true
+                },
+                {
+                    label: 'Predicted Quantity Sold (Moving Average)',
+                    data: predictionValues,
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderWidth: 2,
+                    fill: true
+                }
+            ]
         },
         options: {
             responsive: true,
