@@ -7,17 +7,35 @@ document.getElementById('uploadBtn').addEventListener('click', async () => {
         return;
     }
 
+    const formData = new FormData();
+    formData.append('file', file);
+
     try {
-        // Option 1: Parse CSV directly in browser (no server needed)
-        const csvText = await file.text();
-        const salesData = parseCSVText(csvText);
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Upload failed');
+        }
+
+        const result = await response.json();
         
-        // Visualize the data
+        // Use the processed data from server
+        const salesData = result.data;
+        const analytics = result.analytics;
+        
+        // Visualize data
         visualizeData(salesData);
         
+        // Display enhanced analytics
+        displayEnhancedAnalytics(analytics);
+        
     } catch (error) {
-        alert('Error processing CSV file: ' + error.message);
-        console.error('CSV processing error:', error);
+        alert('Error: ' + error.message);
+        console.error('Upload error:', error);
     }
 });
 
