@@ -1,77 +1,470 @@
-// Main application logic
-document.addEventListener('DOMContentLoaded', function() {
-  // Initialize event listeners
-  document.getElementById('uploadBtn').addEventListener('click', handleFileUpload);
+const express = require('express');
+const multer = require('multer');
+const csv = require('csv-parser');
+const fs = require('fs');
+const path = require('path');
+const cors = require('cors');
+
+const app = express();
+
+// Get current working directory safely
+const currentDir = process.cwd();
+console.log('Current directory:', currentDir);
+
+// Enable CORS
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from current directory
+app.use(express.static(currentDir));
+
+// Configure multer for file uploads
+const uploadsDir = path.join(currentDir, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('Created uploads directory:', uploadsDir);
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${Date.now()}-${file.originalname}`;
+    cb(null, uniqueName);
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    // Accept CSV files
+    if (file.mimetype === 'text/csv' || 
+        file.mimetype === 'application/vnd.ms-excel' ||
+        path.extname(file.originalname).toLowerCase() === '.csv') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are allowed'), false);
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  }
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  // Check if index.html exists
+  const indexPath = path.join(currentDir, 'index.html');
+  const indexExists = fs.existsSync(indexPath);
   
-  // Setup sample CSV download
-  document.getElementById('sampleBtn').addEventListener('click', function() {
-      const sampleCSV = `Date,Quantity,Revenue
-01/01/2026,10,1200
-01/02/2026,15,1800
-01/03/2026,8,960
-01/04/2026,12,1440
-01/05/2026,20,2400
-01/06/2026,18,2160
-01/07/2026,14,1680
-01/08/2026,22,2640
-01/09/2026,16,1920
-01/10/2026,11,1320
-01/11/2026,19,2280
-01/12/2026,25,3000`;
-      
-      const blob = new Blob([sampleCSV], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'sample_sales_data.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+  res.json({ 
+    status: 'ok',
+    server: 'Sales Analytics Dashboard',
+    directory: currentDir,
+    indexExists: indexExists,
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      upload: 'POST /upload',
+      health: 'GET /health',
+      home: 'GET /'
+    }
   });
 });
 
-async function handleFileUpload() {
-  const fileInput = document.getElementById('fileInput');
-  const file = fileInput.files[0];
-  const loadingElement = document.getElementById('loading');
-  const summaryElement = document.getElementById('analyticsSummary');
-  const chartsContainer = document.getElementById('chartsContainer');
-
-  if (!file) {
-      alert('Please select a CSV file first.');
-      return;
+// Home route - serve index.html or dashboard
+app.get('/', (req, res) => {
+  const indexPath = path.join(currentDir, 'index.html');
+  
+  // Check if index.html exists
+  if (fs.existsSync(indexPath)) {
+    console.log('Serving index.html from:', indexPath);
+    res.sendFile(indexPath);
+  } else {
+    console.log('index.html not found, serving dashboard template');
+    // Serve a fallback dashboard
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Sales Analytics Dashboard</title>
+          <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+          <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { 
+                  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  min-height: 100vh;
+                  padding: 20px;
+                  color: white;
+              }
+              .container { 
+                  max-width: 1200px; 
+                  margin: 0 auto; 
+                  background: rgba(255, 255, 255, 0.95);
+                  border-radius: 20px;
+                  padding: 40px;
+                  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                  color: #333;
+              }
+              h1 { 
+                  color: #2c3e50; 
+                  margin-bottom: 30px;
+                  text-align: center;
+                  font-size: 2.5em;
+              }
+              .status-card {
+                  background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%);
+                  color: white;
+                  padding: 25px;
+                  border-radius: 15px;
+                  margin: 20px 0;
+              }
+              .upload-section {
+                  background: white;
+                  padding: 30px;
+                  border-radius: 15px;
+                  margin: 30px 0;
+                  border: 2px dashed #667eea;
+                  text-align: center;
+              }
+              input[type="file"] {
+                  padding: 15px;
+                  margin: 15px;
+                  border: 2px solid #667eea;
+                  border-radius: 10px;
+                  width: 80%;
+                  font-size: 16px;
+              }
+              button {
+                  background: #667eea;
+                  color: white;
+                  border: none;
+                  padding: 15px 30px;
+                  border-radius: 10px;
+                  font-size: 18px;
+                  cursor: pointer;
+                  transition: all 0.3s;
+                  margin: 10px;
+              }
+              button:hover {
+                  background: #764ba2;
+                  transform: translateY(-2px);
+                  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+              }
+              .info {
+                  margin-top: 30px;
+                  padding: 20px;
+                  background: #f8f9fa;
+                  border-radius: 10px;
+                  border-left: 5px solid #667eea;
+              }
+              code {
+                  background: #e9ecef;
+                  padding: 5px 10px;
+                  border-radius: 5px;
+                  font-family: monospace;
+                  color: #d63384;
+              }
+          </style>
+      </head>
+      <body>
+          <div class="container">
+              <h1>📊 Sales Analytics Dashboard</h1>
+              
+              <div class="status-card">
+                  <h2>🚀 Server Running Successfully!</h2>
+                  <p>Directory: ${currentDir}</p>
+                  <p>Uploads folder: ${uploadsDir}</p>
+              </div>
+              
+              <div class="upload-section">
+                  <h3>Upload CSV File</h3>
+                  <input type="file" id="csvFile" accept=".csv">
+                  <button onclick="uploadFile()">📁 Upload & Analyze</button>
+                  <div id="message" style="margin-top: 15px; color: #666;"></div>
+              </div>
+              
+              <div class="info">
+                  <h4>CSV Format Required:</h4>
+                  <pre style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0;">
+Date,Quantity,Revenue
+31/1/2026,4,4200
+01/02/26,3,3000
+02/02/26,2,5500</pre>
+                  
+                  <h4>API Endpoints:</h4>
+                  <ul style="margin-left: 20px; margin-top: 10px;">
+                      <li><code>POST /upload</code> - Upload CSV file</li>
+                      <li><code>GET /health</code> - Server health check</li>
+                  </ul>
+                  
+                  <p style="margin-top: 15px; color: #666;">
+                      <strong>Note:</strong> Place your <code>index.html</code> file in <code>${currentDir}</code> to use the full dashboard.
+                  </p>
+              </div>
+              
+              <div id="charts" style="margin-top: 40px;"></div>
+          </div>
+          
+          <script>
+              async function uploadFile() {
+                  const fileInput = document.getElementById('csvFile');
+                  const messageDiv = document.getElementById('message');
+                  
+                  if (!fileInput.files[0]) {
+                      messageDiv.innerHTML = '<span style="color: #dc3545;">Please select a CSV file first.</span>';
+                      return;
+                  }
+                  
+                  const formData = new FormData();
+                  formData.append('file', fileInput.files[0]);
+                  
+                  messageDiv.innerHTML = '<span style="color: #007bff;">⏳ Processing file...</span>';
+                  
+                  try {
+                      const response = await fetch('/upload', {
+                          method: 'POST',
+                          body: formData
+                      });
+                      
+                      const result = await response.json();
+                      
+                      if (response.ok) {
+                          messageDiv.innerHTML = \`<span style="color: #28a745;">✅ Success! Processed \${result.data.length} records.</span>\`;
+                          displayCharts(result.data);
+                      } else {
+                          messageDiv.innerHTML = \`<span style="color: #dc3545;">❌ Error: \${result.error}</span>\`;
+                      }
+                  } catch (error) {
+                      messageDiv.innerHTML = \`<span style="color: #dc3545;">❌ Network error: \${error.message}</span>\`;
+                  }
+              }
+              
+              function displayCharts(data) {
+                  const chartsDiv = document.getElementById('charts');
+                  chartsDiv.innerHTML = '<h3 style="color: #2c3e50; margin-bottom: 20px;">📈 Data Visualization</h3>';
+                  
+                  // Create chart containers
+                  chartsDiv.innerHTML += \`
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                          <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                              <h4 style="color: #2c3e50; margin-bottom: 15px;">Quantity Over Time</h4>
+                              <canvas id="quantityChart" height="250"></canvas>
+                          </div>
+                          <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                              <h4 style="color: #2c3e50; margin-bottom: 15px;">Revenue Over Time</h4>
+                              <canvas id="revenueChart" height="250"></canvas>
+                          </div>
+                      </div>
+                  \`;
+                  
+                  // Prepare data for charts
+                  const dates = data.map(item => item.date);
+                  const quantities = data.map(item => item.quantity);
+                  const revenues = data.map(item => item.revenue);
+                  
+                  // Create quantity chart
+                  new Chart(document.getElementById('quantityChart'), {
+                      type: 'line',
+                      data: {
+                          labels: dates,
+                          datasets: [{
+                              label: 'Quantity',
+                              data: quantities,
+                              borderColor: '#36a2eb',
+                              backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                              borderWidth: 2,
+                              tension: 0.3
+                          }]
+                      },
+                      options: {
+                          responsive: true,
+                          plugins: {
+                              legend: { display: true }
+                          }
+                      }
+                  });
+                  
+                  // Create revenue chart
+                  new Chart(document.getElementById('revenueChart'), {
+                      type: 'line',
+                      data: {
+                          labels: dates,
+                          datasets: [{
+                              label: 'Revenue ($)',
+                              data: revenues,
+                              borderColor: '#4bc0c0',
+                              backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                              borderWidth: 2,
+                              tension: 0.3
+                          }]
+                      },
+                      options: {
+                          responsive: true,
+                          plugins: {
+                              legend: { display: true }
+                          }
+                      }
+                  });
+              }
+          </script>
+      </body>
+      </html>
+    `);
   }
+});
 
-  // Reset previous displays
-  summaryElement.style.display = 'none';
-  chartsContainer.style.display = 'none';
-  loadingElement.style.display = 'block';
-
+// Upload endpoint
+app.post('/upload', upload.single('file'), (req, res) => {
   try {
-      // Parse CSV directly in browser
-      const csvText = await file.text();
-      const salesData = parseCSVText(csvText);
-      
-      if (salesData.length === 0) {
-          throw new Error('No valid data found in CSV file.');
-      }
-      
-      // Visualize the data
-      visualizeData(salesData);
-      
-      // Show containers
-      summaryElement.style.display = 'block';
-      chartsContainer.style.display = 'grid';
-      
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'No file uploaded' 
+      });
+    }
+
+    console.log(`Processing file: ${req.file.originalname}, size: ${req.file.size} bytes`);
+    
+    const results = [];
+    
+    fs.createReadStream(req.file.path)
+      .pipe(csv())
+      .on('data', (data) => {
+        try {
+          // Process CSV row
+          const row = {
+            date: data.Date || data.date || '',
+            quantity: parseInt(data.Quantity || data.quantity || '0') || 0,
+            revenue: parseInt(data.Revenue || data.revenue || '0') || 0,
+            product: data.Product || data.product || 'Unknown'
+          };
+          
+          results.push(row);
+        } catch (error) {
+          console.log('Error parsing row:', error.message);
+        }
+      })
+      .on('end', () => {
+        // Clean up uploaded file
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error('Error deleting temp file:', err);
+        });
+
+        if (results.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'No valid data found in CSV file'
+          });
+        }
+
+        // Calculate summary
+        const summary = {
+          totalQuantity: results.reduce((sum, item) => sum + item.quantity, 0),
+          totalRevenue: results.reduce((sum, item) => sum + item.revenue, 0),
+          avgQuantity: results.reduce((sum, item) => sum + item.quantity, 0) / results.length,
+          avgRevenue: results.reduce((sum, item) => sum + item.revenue, 0) / results.length,
+          records: results.length
+        };
+
+        res.json({
+          success: true,
+          message: `Processed ${results.length} records successfully`,
+          data: results,
+          summary: summary,
+          file: {
+            name: req.file.originalname,
+            size: req.file.size,
+            type: req.file.mimetype
+          }
+        });
+      })
+      .on('error', (error) => {
+        console.error('CSV parsing error:', error);
+        res.status(500).json({ 
+          success: false,
+          error: 'Error parsing CSV file',
+          details: error.message 
+        });
+      });
+
   } catch (error) {
-      alert('Error: ' + error.message);
-      console.error('Error details:', error);
-  } finally {
-      loadingElement.style.display = 'none';
+    console.error('Upload error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error during file processing',
+      details: error.message 
+    });
   }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err.message);
+  
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'File too large. Maximum size is 5MB.' 
+      });
+    }
+    return res.status(400).json({ 
+      success: false,
+      error: `File upload error: ${err.message}` 
+    });
+  }
+  
+  res.status(500).json({ 
+    success: false,
+    error: 'Internal server error'
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`
+  ╔═══════════════════════════════════════════════╗
+  ║    🚀 Sales Analytics Server Started!         ║
+  ╠═══════════════════════════════════════════════╣
+  ║  📍 Local:    http://localhost:${PORT}        ║
+  ║  📍 Network:  http://${getLocalIP()}:${PORT}  ║
+  ║  📂 Directory: ${currentDir}                  ║
+  ║  📊 Health:   http://localhost:${PORT}/health ║
+  ║  📁 Upload:   POST /upload                    ║
+  ╚═══════════════════════════════════════════════╝
+  `);
+});
+
+// Helper to get local IP address
+function getLocalIP() {
+  try {
+    const { networkInterfaces } = require('os');
+    const interfaces = networkInterfaces();
+    
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+  } catch (error) {
+    console.log('Could not get local IP:', error.message);
+  }
+  return 'localhost';
 }
-///////////////////////////////////////////////////////////////////////////////////
+
+// Handle graceful shutdown
+['SIGTERM', 'SIGINT'].forEach(signal => {
+  process.on(signal, () => {
+    console.log(`\n${signal} received. Shutting down gracefully...`);
+    process.exit(0);
+  });
+});
+
 
 // const express = require('express');
 // const multer = require('multer');

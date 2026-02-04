@@ -96,93 +96,64 @@
 </body>
 </html> {% endcomment %}
 
+# Create a simple index.html in your chart_js directory
+cat > index.html << 'EOF'
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Visualization Dashboard</title>
+    <title>Analytics Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        
         body {
             margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            background-attachment: fixed;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-image: url('/images/financials.jpg'); /* Change this to your local image path */
+            background-size: cover;
             color: white;
-            font-family: Arial, sans-serif;
         }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background-color: rgba(0, 0, 0, 0.7);
-            border-radius: 15px;
-            padding: 30px;
-            backdrop-filter: blur(5px);
-        }
-        
         h1 {
             margin-bottom: 20px;
-            text-align: center;
-            color: #4a90e2;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         }
-        
-        .upload-section {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-        }
-        
         input[type="file"], 
         button {
             margin: 10px;
-            padding: 12px 20px;
+            padding: 10px 15px;
             font-size: 16px;
             border: none;
-            border-radius: 8px;
+            border-radius: 5px;
             cursor: pointer;
-            background-color: rgba(74, 144, 226, 0.8);
+            background-color: rgba(0, 0, 0, 0.6);
             color: white;
-            transition: all 0.3s ease;
         }
-        
         button:hover {
-            background-color: rgba(74, 144, 226, 1);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            background-color: rgba(0, 0, 0, 0.8);
         }
-        
-        #analyticsSummary {
-            margin: 30px 0;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 10px;
-            color: #333;
-        }
-        
+
+        #chartContainer {
+            width: 60%;
+            max-width: 600px;
+            margin-top: 20px;
+        } 
         .charts-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
+            gap: 15px;
+            margin: 30px 0;
+            padding: 20px;
         }
         
         .chart-wrapper {
             background: white;
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-            transition: transform 0.3s ease;
-        }
-        
-        .chart-wrapper:hover {
-            transform: translateY(-5px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
         
         .chart-wrapper.full-width {
@@ -191,118 +162,88 @@
         
         canvas {
             width: 100% !important;
-            height: 350px !important;
+            height: 400px !important;
         }
-        
-        /* Metric Cards Styling */
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-        
-        .metric-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            color: white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        
-        .metric-label {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.9);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-        
-        .metric-value {
-            font-size: 24px;
-            font-weight: bold;
-        }
-        
-        /* Loading state */
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-        
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top: 4px solid #4a90e2;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .charts-container {
-                grid-template-columns: 1fr;
-            }
-            
-            .chart-wrapper {
-                min-width: 100%;
-            }
-            
-            canvas {
-                height: 300px !important;
-            }
-            
-            .container {
-                padding: 15px;
-            }
-        }
-        
     </style>
 </head>
-
 <body>
     <div class="container">
         <h1>📊 Analytics Dashboard</h1>
         
         <div class="upload-section">
-            <input type="file" id="fileInput" accept=".csv" style="color: white;">
-            <button id="uploadBtn">📁 Upload CSV File</button>
-            <button id="sampleBtn" style="background-color: rgba(155, 89, 182, 0.8);">📋 Download Sample CSV</button>
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>Processing data...</p>
-            </div>
+            <h2>Upload CSV File</h2>
+            <input type="file" id="csvFile" accept=".csv">
+            <button onclick="uploadFile()">Upload & Analyze</button>
+            <div id="message" style="margin-top: 15px;"></div>
         </div>
         
-        <div id="analyticsSummary" style="display: none;">
-            <!-- Will be populated by JavaScript -->
-        </div>
+        <div id="analyticsSummary"></div>
         
-        <div class="charts-container" id="chartsContainer" style="display: none;">
+        <div class="charts-container">
             <div class="chart-wrapper">
-                <h3 style="color: #333; margin-top: 0;">Quantity Sold</h3>
+                <h3>Quantity Chart</h3>
                 <canvas id="quantityChart"></canvas>
             </div>
             <div class="chart-wrapper">
-                <h3 style="color: #333; margin-top: 0;">Revenue Trend</h3>
+                <h3>Revenue Chart</h3>
                 <canvas id="revenueChart"></canvas>
-            </div>
-            <div class="chart-wrapper full-width">
-                <h3 style="color: #333; margin-top: 0;">Quantity vs Revenue Comparison</h3>
-                <canvas id="combinedChart"></canvas>
             </div>
         </div>
     </div>
     
-    <script src="script.js"></script>
-    <script src="app.js"></script>
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('csvFile');
+            const messageDiv = document.getElementById('message');
+            
+            if (!fileInput.files[0]) {
+                messageDiv.innerHTML = '<span style="color: red;">Please select a CSV file.</span>';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            messageDiv.innerHTML = '<span style="color: blue;">Processing...</span>';
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    messageDiv.innerHTML = `<span style="color: green;">✅ ${result.message}</span>`;
+                    visualizeData(result.data);
+                } else {
+                    messageDiv.innerHTML = `<span style="color: red;">❌ ${result.error}</span>`;
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<span style="color: red;">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        function visualizeData(data) {
+            // Your visualization code here
+            console.log('Data received:', data);
+            
+            // Update analytics summary
+            const summary = document.getElementById('analyticsSummary');
+            const totalQuantity = data.reduce((sum, item) => sum + item.quantity, 0);
+            const totalRevenue = data.reduce((sum, item) => sum + item.revenue, 0);
+            
+            summary.innerHTML = `
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3>Analytics Summary</h3>
+                    <p><strong>Total Records:</strong> ${data.length}</p>
+                    <p><strong>Total Quantity:</strong> ${totalQuantity}</p>
+                    <p><strong>Total Revenue:</strong> $${totalRevenue}</p>
+                </div>
+            `;
+        }
+    </script>
 </body>
 </html>
+EOF
